@@ -58,7 +58,7 @@ async function voucherLogin(req, res) {
     } else {
       const profile = getMikroTikProfile(voucher.plan_name);
       console.log(`[Activation] Queued: ${mac} | IP: ${ip} | Profile: ${profile}`);
-      await pollingController.queueActivation({ mac, ip, profile });
+      await pollingController.queueActivation({ mac, ip, profile, voucherCode: voucher.code });
     }
 
     return res.json({
