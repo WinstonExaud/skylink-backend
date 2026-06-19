@@ -1,17 +1,16 @@
 /**
  * SKYLINK NET — MikroTik Polling Controller
  *
- * MikroTik polls this endpoint every 5 seconds asking for pending
- * activations, instead of the backend pushing to MikroTik directly.
- *
- * Format: comma-delimited, one activation per line:
- *   MAC,IP,PROFILE
- * Much more reliable than fixed-width parsing in MikroTik scripts.
+ * Backend now returns the FULL MikroTik command as plain text.
+ * MikroTik just executes it directly — zero client-side parsing,
+ * eliminating all the nested :if / :pick / :find complexity that
+ * kept failing due to RouterOS scripting quirks.
  */
 
 const pool = require('../config/db');
 
 // ── GET /api/mikrotik/pending ────────────────────────────────────────────────
+// Returns ready-to-run MikroTik commands, one per line.
 async function getPending(req, res) {
   try {
     const result = await pool.query(`
@@ -32,9 +31,9 @@ async function getPending(req, res) {
       [ids]
     );
 
-    // Comma-delimited format: MAC,IP,PROFILE — one per line
+    // Return the FULL command MikroTik should run, one per line
     const lines = result.rows.map(r =>
-      `${r.mac_address},${r.ip_address || '0.0.0.0'},${r.profile}`
+      `/ip hotspot active add mac-address=${r.mac_address} address=${r.ip_address || '0.0.0.0'} server=hotspot1 profile=${r.profile}`
     );
 
     return res.type('text/plain').send(lines.join('\n'));
@@ -44,7 +43,6 @@ async function getPending(req, res) {
   }
 }
 
-// ── Internal helper — called by voucherController after successful login ────
 async function queueActivation({ mac, ip, profile }) {
   await pool.query(`
     INSERT INTO pending_activations (mac_address, ip_address, profile)
@@ -73,7 +71,9 @@ async function getPendingDisconnects(req, res) {
       [ids]
     );
 
-    const lines = result.rows.map(r => r.mac_address);
+    const lines = result.rows.map(r =>
+      `/ip hotspot active remove [find mac-address=${r.mac_address}]`
+    );
     return res.type('text/plain').send(lines.join('\n'));
   } catch (err) {
     console.error('getPendingDisconnects error:', err);
