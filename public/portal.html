@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SKYLINK NET — Ingia</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --br-dark:#3A1A08;--br-mid:#6B2C0A;--br-btn:#5C2208;
+  --br-soft:#C99468;--br-brd:#D4A87A;
+  --cream:#FAF5EF;--card:#FFFFFF;--inp:#FBF7F3;
+  --txt:#2C1206;--txt2:#6B3A1A;--muted:#9C7060;
+  --brd:#E8D8C8;--grn:#1E9E5F;--grn-bg:#E3F5ED;
+  --red:#DC2626;--red-bg:#FEE2E2;--amb:#C97706;--amb-bg:#FEF3C7;
+}
+html,body{min-height:100%;background:var(--cream);font-family:-apple-system,'Inter','Segoe UI',sans-serif;color:var(--txt);-webkit-font-smoothing:antialiased}
+.page{min-height:100vh;display:flex;flex-direction:column;max-width:480px;margin:0 auto}
+.wave-top{width:100%;height:90px;overflow:hidden;flex-shrink:0;position:relative}
+.wave-top svg{position:absolute;bottom:0;left:0;width:100%;height:100%}
+.brand{text-align:center;padding:24px 24px 14px;animation:fadeUp .5s ease both}
+.wifi-icon{display:flex;justify-content:center;margin-bottom:8px;color:var(--br-mid)}
+.brand-name{font-size:36px;font-weight:900;letter-spacing:-.5px;line-height:1;margin-bottom:4px}
+.brand-name span:first-child{color:var(--br-dark)}
+.brand-name span:last-child{color:var(--br-soft);margin-left:4px}
+.tagline{display:flex;align-items:center;justify-content:center;gap:10px;color:var(--br-mid);font-size:12px;font-weight:600;letter-spacing:.5px}
+.tagline::before,.tagline::after{content:'';flex:0 0 36px;height:1.5px;background:var(--br-soft);border-radius:1px}
+.welcome{text-align:center;padding:0 24px 16px;animation:fadeUp .5s .07s ease both}
+.welcome h2{font-size:19px;font-weight:700;color:var(--br-dark);margin-bottom:6px}
+.welcome p{font-size:13.5px;color:var(--muted);line-height:1.6}
+.pkgs{padding:0 16px 4px;animation:fadeUp .5s .10s ease both}
+.sec-lbl{text-align:center;font-size:11px;font-weight:800;letter-spacing:1.8px;color:var(--txt2);text-transform:uppercase;margin-bottom:12px}
+.pkg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.pkg{background:var(--card);border:1.5px solid var(--brd);border-radius:14px;overflow:hidden;text-align:center;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;position:relative}
+.pkg:hover{transform:translateY(-3px);box-shadow:0 6px 18px rgba(107,44,10,.16);border-color:var(--br-brd)}
+.pkg.sel{border-color:var(--br-mid);box-shadow:0 0 0 2px rgba(107,44,10,.18),0 4px 14px rgba(107,44,10,.12)}
+.pkg-badge{display:none;position:absolute;top:-1px;right:-1px;background:var(--amb);color:#fff;font-size:8px;font-weight:800;padding:2px 6px;border-radius:0 12px 0 6px}
+.pkg.sel .pkg-badge{display:block}
+.pkg-hd{background:var(--br-btn);color:#fff;padding:10px 6px 8px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.pkg-ico{width:28px;height:28px;border:1.5px solid rgba(255,255,255,.4);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.pkg-lbl{font-size:9.5px;font-weight:800;letter-spacing:.5px}
+.pkg-body{padding:9px 5px 10px}
+.pkg-price{font-size:14px;font-weight:800;color:var(--br-mid);line-height:1;margin-bottom:2px}
+.pkg-price.hl{color:var(--amb)}
+.pkg-price small{font-size:9px;font-weight:700;color:var(--muted)}
+.pkg-dash{font-size:10px;color:var(--muted);margin:2px 0}
+.pkg-valid{font-size:9px;color:var(--muted);line-height:1.4}
+.pkg-btn{display:block;width:calc(100% - 16px);margin:0 8px 10px;background:var(--br-btn);color:#fff;border:none;border-radius:8px;padding:8px 0;font-size:11px;font-weight:700;letter-spacing:.5px;cursor:pointer;transition:background .15s}
+.pkg-btn:hover{background:var(--br-mid)}
+.div-row{display:flex;align-items:center;gap:12px;padding:6px 16px 14px;animation:fadeUp .5s .14s ease both}
+.div-row::before,.div-row::after{content:'';flex:1;height:1px;background:var(--brd)}
+.div-row span{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;white-space:nowrap}
+.card{background:var(--card);border-radius:20px;box-shadow:0 4px 32px rgba(60,26,8,.12),0 1px 4px rgba(60,26,8,.08);margin:0 16px;padding:26px 22px 22px;animation:fadeUp .5s .16s ease both}
+.c-icon{width:54px;height:54px;background:var(--amb-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:var(--br-mid)}
+.c-title{text-align:center;font-size:16px;font-weight:800;letter-spacing:.5px;color:var(--txt);margin-bottom:3px}
+.c-sub{text-align:center;font-size:13px;color:var(--muted);margin-bottom:20px}
+.banner{display:none;background:linear-gradient(135deg,var(--br-btn),var(--br-mid));color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:16px;align-items:center;justify-content:space-between;gap:8px}
+.banner.show{display:flex}
+.ban-l{display:flex;align-items:center;gap:8px}
+.ban-name{font-size:14px;font-weight:800}
+.ban-price{font-size:12px;opacity:.85}
+.ban-chg{background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.igrp{display:flex;align-items:center;gap:10px;background:var(--inp);border:1.5px solid var(--brd);border-radius:12px;padding:14px 16px;margin-bottom:12px;transition:border-color .18s,box-shadow .18s}
+.igrp:focus-within{border-color:var(--br-mid);box-shadow:0 0 0 3px rgba(107,44,10,.10);background:#fff}
+.igrp.err{border-color:var(--red);box-shadow:0 0 0 3px rgba(220,38,38,.08)}
+.iico{color:var(--br-soft);flex-shrink:0}
+.igrp input{flex:1;background:none;border:none;outline:none;font-size:15px;color:var(--txt);font-family:inherit;min-width:0}
+.igrp input::placeholder{color:#B0A090}
+.errmsg{display:none;align-items:center;gap:7px;background:var(--red-bg);color:var(--red);border:1px solid #FECACA;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:500;margin-bottom:14px;animation:shake .4s ease}
+.errmsg.show{display:flex}
+.btn-conn{width:100%;background:var(--br-btn);color:#fff;border:none;border-radius:12px;padding:16px;font-size:15px;font-weight:800;letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:12px;cursor:pointer;margin-top:4px;margin-bottom:16px;transition:background .18s,transform .12s,box-shadow .18s;box-shadow:0 4px 18px rgba(92,34,8,.30)}
+.btn-conn:hover:not(:disabled){background:var(--br-mid);transform:translateY(-1px)}
+.btn-conn:disabled{opacity:.65;cursor:not-allowed}
+.b-circle{width:30px;height:30px;background:rgba(255,255,255,.18);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.no-v{text-align:center;padding:14px 8px 4px;border-top:1px solid var(--brd);margin-top:2px}
+.no-v p{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:8px}
+.no-v strong{color:var(--br-mid);font-size:14px}
+.call-btn{display:inline-flex;align-items:center;gap:7px;background:var(--amb-bg);color:var(--amb);border:1.5px solid var(--br-brd);border-radius:10px;padding:9px 16px;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s;text-decoration:none;margin-top:4px}
+.call-btn:hover{background:var(--amb);color:#fff}
+.success{display:none;flex-direction:column;align-items:center;text-align:center;padding:8px 0 4px}
+.success.show{display:flex}
+.s-circle{width:72px;height:72px;background:var(--grn-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:14px;animation:popIn .4s cubic-bezier(.34,1.56,.64,1)}
+.s-title{font-size:18px;font-weight:800;color:var(--grn);margin-bottom:5px}
+.s-sub{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:16px}
+.sinfo{width:100%;background:var(--inp);border:1px solid var(--brd);border-radius:12px;padding:12px 16px;margin-bottom:14px}
+.srow{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;border-bottom:1px solid var(--brd)}
+.srow:last-child{border-bottom:none}
+.srow span:first-child{color:var(--muted)}
+.srow span:last-child{font-weight:600;color:var(--txt);font-size:12.5px;word-break:break-all;text-align:right;max-width:60%}
+.cd-wrap{width:100%;background:linear-gradient(135deg,var(--br-btn),var(--br-mid));border-radius:14px;padding:16px 14px 14px;margin-bottom:14px;text-align:center;transition:background .5s}
+.cd-wrap.exp{background:linear-gradient(135deg,#8B1A1A,var(--red))}
+.cd-lbl{font-size:11px;font-weight:700;color:rgba(255,255,255,.75);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px}
+.cd-digits{display:flex;align-items:center;justify-content:center;gap:6px}
+.cd-blk{background:rgba(255,255,255,.15);border-radius:9px;padding:8px 10px;min-width:52px;text-align:center}
+.cd-num{font-size:28px;font-weight:900;color:#fff;line-height:1}
+.cd-unit{font-size:9px;font-weight:700;color:rgba(255,255,255,.65);letter-spacing:1px;margin-top:2px}
+.cd-sep{font-size:26px;font-weight:900;color:rgba(255,255,255,.5);margin-bottom:12px;animation:blink 1s infinite}
+.cd-bar-wrap{width:100%;background:rgba(255,255,255,.2);border-radius:10px;height:6px;margin-top:12px;overflow:hidden}
+.cd-bar{height:100%;background:rgba(255,255,255,.85);border-radius:10px;transition:width 1s linear}
+.disc-btn{width:100%;background:none;border:1.5px solid var(--brd);border-radius:10px;padding:11px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;margin-top:4px;transition:background .15s,color .15s,border-color .15s}
+.disc-btn:hover{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.help{display:flex;align-items:center;justify-content:space-between;margin:14px 16px 0;padding:13px 16px;background:var(--card);border:1px solid var(--brd);border-radius:14px;font-size:13px;color:var(--muted);animation:fadeUp .5s .22s ease both}
+.help-ph{display:flex;align-items:center;gap:6px;font-weight:700;color:var(--br-mid);font-size:13px;text-decoration:none}
+.help-ph:hover{color:var(--amb)}
+.wave-bot{width:100%;height:70px;overflow:hidden;margin-top:20px;flex-shrink:0;position:relative}
+.wave-bot svg{position:absolute;top:0;left:0;width:100%;height:100%}
+.footer{background:var(--br-dark);padding:14px 24px 28px;text-align:center;color:rgba(255,255,255,.9)}
+.ft-brand{font-size:15px;font-weight:800;letter-spacing:1px;margin-bottom:2px}
+.ft-tag{font-size:12px;opacity:.65;margin-bottom:6px}
+.ft-copy{font-size:11px;opacity:.45}
+.loader{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);z-index:200;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.loader.show{display:flex}
+.spin{width:44px;height:44px;border-radius:50%;border:4px solid rgba(255,255,255,.2);border-top-color:#fff;animation:spin .65s linear infinite}
+.loader p{color:#fff;font-size:15px;font-weight:500;animation:pulse 1.5s infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+@keyframes popIn{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@media(min-width:480px){body{background:#EDE3D8}.page{background:var(--cream);box-shadow:0 0 60px rgba(0,0,0,.15)}}
+</style>
+</head>
+<body>
+
+<div class="loader" id="loader">
+  <div class="spin"></div>
+  <p id="loaderMsg">Inathibitisha voucher...</p>
+</div>
+
+<div class="page">
+  <div class="wave-top">
+    <svg viewBox="0 0 480 90" preserveAspectRatio="none">
+      <path d="M0,0 L480,0 L480,90 Q360,30 240,55 Q120,80 0,40 Z" fill="#5C2208"/>
+      <path d="M0,0 L480,0 L480,70 Q380,20 260,45 Q140,70 0,25 Z" fill="#3A1A08" opacity=".6"/>
+    </svg>
+  </div>
+
+  <div class="brand">
+    <div class="wifi-icon">
+      <svg width="68" height="50" viewBox="0 0 72 52" fill="none">
+        <path d="M4 18C16 5 28 0 36 0C44 0 56 5 68 18" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+        <path d="M12 28C20 20 28 16 36 16C44 16 52 20 60 28" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+        <path d="M22 38C27 33 31.5 31 36 31C40.5 31 45 33 50 38" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+        <circle cx="36" cy="47" r="5" fill="currentColor"/>
+      </svg>
+    </div>
+    <div class="brand-name"><span>SKYLINK</span><span>NET</span></div>
+    <div class="tagline">Bando Bei Poa Peruzi Bila Kikomo</div>
+  </div>
+
+  <div class="welcome">
+    <h2>Karibu SKYLINK NET</h2>
+    <p>Chagua kifurushi kisha weka nambari<br>ya voucher yako kupata intaneti.</p>
+  </div>
+
+  <div class="pkgs">
+    <div class="sec-lbl">Chagua Kifurushi Chako</div>
+    <div class="pkg-grid">
+      <div class="pkg" id="pk-hour" onclick="selPkg(this,'hour')">
+        <span class="pkg-badge">CHAGUO</span>
+        <div class="pkg-hd">
+          <div class="pkg-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></div>
+          <div class="pkg-lbl">1 SAA</div>
+        </div>
+        <div class="pkg-body">
+          <div class="pkg-price">500<small>TZS</small></div>
+          <div class="pkg-dash">—</div>
+          <div class="pkg-valid">Masaa 1</div>
+        </div>
+        <button class="pkg-btn" onclick="event.stopPropagation();buyPkg('hour','1 Saa','TZS 500')">NUNUA</button>
+      </div>
+      <div class="pkg" id="pk-day" onclick="selPkg(this,'day')">
+        <span class="pkg-badge">CHAGUO</span>
+        <div class="pkg-hd">
+          <div class="pkg-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
+          <div class="pkg-lbl">1 SIKU</div>
+        </div>
+        <div class="pkg-body">
+          <div class="pkg-price hl">1,000<small>TZS</small></div>
+          <div class="pkg-dash">—</div>
+          <div class="pkg-valid">Masaa 24</div>
+        </div>
+        <button class="pkg-btn" onclick="event.stopPropagation();buyPkg('day','1 Siku','TZS 1,000')">NUNUA</button>
+      </div>
+      <div class="pkg" id="pk-week" onclick="selPkg(this,'week')">
+        <span class="pkg-badge">CHAGUO</span>
+        <div class="pkg-hd">
+          <div class="pkg-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
+          <div class="pkg-lbl">1 WIKI</div>
+        </div>
+        <div class="pkg-body">
+          <div class="pkg-price hl">7,000<small>TZS</small></div>
+          <div class="pkg-dash">—</div>
+          <div class="pkg-valid">Siku 7</div>
+        </div>
+        <button class="pkg-btn" onclick="event.stopPropagation();buyPkg('week','1 Wiki','TZS 7,000')">NUNUA</button>
+      </div>
+      <div class="pkg" id="pk-month" onclick="selPkg(this,'month')">
+        <span class="pkg-badge">CHAGUO</span>
+        <div class="pkg-hd">
+          <div class="pkg-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
+          <div class="pkg-lbl">1 MWEZI</div>
+        </div>
+        <div class="pkg-body">
+          <div class="pkg-price hl">25,000<small>TZS</small></div>
+          <div class="pkg-dash">—</div>
+          <div class="pkg-valid">Siku 30</div>
+        </div>
+        <button class="pkg-btn" onclick="event.stopPropagation();buyPkg('month','1 Mwezi','TZS 25,000')">NUNUA</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="div-row"><span>UNA VOUCHER? WEKA HAPA CHINI</span></div>
+
+  <div class="card" id="loginCard">
+    <div id="loginForm">
+      <div class="banner" id="banner">
+        <div class="ban-l">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <div>
+            <div class="ban-name" id="banName">—</div>
+            <div class="ban-price" id="banPrice">—</div>
+          </div>
+        </div>
+        <button class="ban-chg" onclick="changePkg()">Badilisha</button>
+      </div>
+
+      <div class="c-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M7 7V6a5 5 0 0 1 10 0v1" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="14" r="2" fill="currentColor"/></svg>
+      </div>
+      <div class="c-title">WEKA NAMBARI YA VOUCHER</div>
+      <div class="c-sub">Andika nambari iliyopo kwenye voucher yako</div>
+
+      <div class="errmsg" id="errMsg">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16" stroke-width="3"/></svg>
+        <span id="errTxt">Nambari si sahihi.</span>
+      </div>
+
+      <div class="igrp" id="vcGrp">
+        <span class="iico">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" stroke="currentColor" stroke-width="2"/><line x1="12" y1="12" x2="12" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </span>
+        <input type="text" id="vcInput" placeholder="Mfano: SKY-AB12"
+          autocomplete="off" autocorrect="off" autocapitalize="characters"
+          spellcheck="false" maxlength="20" inputmode="text"/>
+      </div>
+
+      <button class="btn-conn" id="connBtn">
+        <span>UNGANISHA</span>
+        <div class="b-circle">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M1.42 9a16 16 0 0 1 21.16 0" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M5 12.55a11 11 0 0 1 14.08 0" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M10.35 17.37a3 3 0 0 1 3.3 0" stroke="white" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="20" x2="12.01" y2="20" stroke="white" stroke-width="3" stroke-linecap="round"/></svg>
+        </div>
+      </button>
+
+      <div class="no-v">
+        <p>Huna voucher bado?<br><strong>Piga simu au WhatsApp kupata voucher:</strong></p>
+        <a href="tel:+255621597520" class="call-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.72a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          +255 621 597 520
+        </a>
+      </div>
+    </div>
+
+    <div class="success" id="successDiv">
+      <div class="s-circle">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#1E9E5F" stroke-width="2"/><path d="M8 12l3 3 5-5" stroke="#1E9E5F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="s-title">Umefanikiwa Kuunganishwa!</div>
+      <div class="s-sub" id="sSub">Uko kwenye SKYLINK NET sasa.<br>Furahia intaneti ya haraka! 🎉</div>
+
+      <div class="sinfo">
+        <div class="srow"><span>Voucher</span><span id="sVoucher">—</span></div>
+        <div class="srow"><span>Kifurushi</span><span id="sPlan">—</span></div>
+        <div class="srow"><span>MAC Address</span><span id="sMAC">—</span></div>
+        <div class="srow"><span>IP Address</span><span id="sIP">—</span></div>
+        <div class="srow"><span>Inaisha</span><span id="sExpiry">—</span></div>
+      </div>
+
+      <div class="cd-wrap" id="cdWrap">
+        <div class="cd-lbl">⏱ Muda Uliobaki</div>
+        <div class="cd-digits">
+          <div class="cd-blk" id="cdDB" style="display:none"><div class="cd-num" id="cdD">0</div><div class="cd-unit">SIKU</div></div>
+          <div class="cd-sep" id="cdDS" style="display:none">:</div>
+          <div class="cd-blk"><div class="cd-num" id="cdH">00</div><div class="cd-unit">SAA</div></div>
+          <div class="cd-sep">:</div>
+          <div class="cd-blk"><div class="cd-num" id="cdM">00</div><div class="cd-unit">DAKA</div></div>
+          <div class="cd-sep">:</div>
+          <div class="cd-blk"><div class="cd-num" id="cdS">00</div><div class="cd-unit">SEK</div></div>
+        </div>
+        <div class="cd-bar-wrap"><div class="cd-bar" id="cdBar" style="width:100%"></div></div>
+      </div>
+
+      <button class="disc-btn" onclick="doDisconnect()">Ondoa Muunganisho (Logout)</button>
+    </div>
+  </div>
+
+  <div class="help">
+    <span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;color:var(--muted);margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17" stroke-width="3"/></svg>
+      Msaada? Wasiliana nasi
+    </span>
+    <a href="tel:+255621597520" class="help-ph">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.72a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      +255 621 597 520
+    </a>
+  </div>
+
+  <div class="wave-bot">
+    <svg viewBox="0 0 480 70" preserveAspectRatio="none">
+      <path d="M0,70 L480,70 L480,0 Q360,55 240,30 Q120,5 0,45 Z" fill="#3A1A08"/>
+      <path d="M0,70 L480,70 L480,12 Q380,58 260,35 Q140,12 0,52 Z" fill="#5C2208" opacity=".55"/>
+    </svg>
+  </div>
+  <div class="footer">
+    <div class="ft-brand">SKYLINK NET</div>
+    <div class="ft-tag">Mtandao wa Kuaminika. Kila Mahali.</div>
+    <div class="ft-copy">© 2026 SKYLINK NET. Haki Zote Zimehifadhiwa.</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const API = 'http://192.168.88.227:3000/api';
+
+// ═══════════════════════════════════════════════════════
+//  READ MAC + IP — these now come as REAL URL query params
+//  because MikroTik's tiny redirect file processed $(mac)
+//  before sending the browser here.
+// ═══════════════════════════════════════════════════════
+const URLP = new URLSearchParams(window.location.search);
+
+function getMac() {
+  const m = URLP.get('mac');
+  return (m && m.trim() !== '') ? m.trim() : 'UNKNOWN';
+}
+function getIp() {
+  const i = URLP.get('ip');
+  return (i && i.trim() !== '') ? i.trim() : '';
+}
+function getDst() {
+  return URLP.get('dst') || 'http://google.com';
+}
+
+let SID=null, HB_INT=null, CD_INT=null, EXPIRY=null, TOTAL_MS=null, NOTIF_ID=null;
+
+const pad = n => String(n).padStart(2,'0');
+function fmtExpiry(iso){ if(!iso) return '—'; return new Date(iso).toLocaleString('sw-TZ',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
+function showErr(msg){ document.getElementById('errTxt').textContent=msg; document.getElementById('errMsg').classList.add('show'); document.getElementById('vcGrp').classList.add('err'); }
+function clearErr(){ document.getElementById('errMsg').classList.remove('show'); document.getElementById('vcGrp').classList.remove('err'); }
+function setLoad(on,msg){ document.getElementById('loaderMsg').textContent=msg||'Tafadhali subiri...'; document.getElementById('loader').classList.toggle('show',on); document.getElementById('connBtn').disabled=on; }
+function scrollToCard(){ document.getElementById('loginCard').scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>document.getElementById('vcInput').focus(),400); }
+
+async function requestNotifPermission(){
+  if(!('Notification' in window)) return false;
+  if(Notification.permission==='granted') return true;
+  if(Notification.permission==='denied') return false;
+  return (await Notification.requestPermission())==='granted';
+}
+function showNotifCountdown(remaining,code){
+  if(!('Notification' in window)||Notification.permission!=='granted') return;
+  if(NOTIF_ID){ try{NOTIF_ID.close();}catch(e){} }
+  const h=Math.floor(remaining/3600000), m=Math.floor((remaining%3600000)/60000), s=Math.floor((remaining%60000)/1000);
+  let t = h>0?`${h}h ${pad(m)}m`:m>0?`${m}m ${pad(s)}s`:`${s} sekunde`;
+  try{
+    NOTIF_ID=new Notification('⏱ SKYLINK NET — '+code,{body:'Muda uliobaki: '+t,tag:'skylink-countdown',requireInteraction:false,silent:true});
+  }catch(e){}
+}
+function startNotifUpdater(code){
+  setInterval(()=>{ if(!EXPIRY) return; const r=new Date(EXPIRY)-new Date(); if(r>0) showNotifCountdown(r,code); },60000);
+  const r=new Date(EXPIRY)-new Date(); if(r>0) showNotifCountdown(r,code);
+}
+
+function startCountdown(expiry,start,code){
+  EXPIRY=expiry; TOTAL_MS=new Date(expiry)-new Date(start||Date.now()); clearInterval(CD_INT);
+  function tick(){
+    const diff=new Date(EXPIRY)-new Date();
+    if(diff<=0){
+      clearInterval(CD_INT);
+      ['cdD','cdH','cdM','cdS'].forEach(id=>document.getElementById(id).textContent='00');
+      document.getElementById('cdBar').style.width='0%';
+      localStorage.removeItem('skylink_session');
+      if(NOTIF_ID){try{NOTIF_ID.close();}catch(e){}}
+      setTimeout(()=>{ alert('Muda wa voucher yako umeisha.\\nTafadhali nunua voucher mpya.'); location.reload(); },1200);
+      return;
+    }
+    const ts=Math.floor(diff/1000), d=Math.floor(ts/86400), h=Math.floor((ts%86400)/3600), m=Math.floor((ts%3600)/60), s=ts%60;
+    const db=document.getElementById('cdDB'), ds=document.getElementById('cdDS');
+    if(d>0){db.style.display='block';ds.style.display='block';document.getElementById('cdD').textContent=d;}
+    else{db.style.display='none';ds.style.display='none';}
+    document.getElementById('cdH').textContent=pad(h);
+    document.getElementById('cdM').textContent=pad(m);
+    document.getElementById('cdS').textContent=pad(s);
+    if(TOTAL_MS>0) document.getElementById('cdBar').style.width=Math.max(0,(diff/TOTAL_MS)*100)+'%';
+    document.getElementById('cdWrap').classList.toggle('exp',diff<300000);
+  }
+  tick(); CD_INT=setInterval(tick,1000);
+}
+
+function startHeartbeat(sid){
+  SID=sid; clearInterval(HB_INT);
+  HB_INT=setInterval(async()=>{
+    try{
+      const r=await fetch(API+'/auth/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:sid})});
+      const d=await r.json();
+      if(d.status==='EXPIRED'){
+        clearInterval(HB_INT); clearInterval(CD_INT);
+        if(NOTIF_ID){try{NOTIF_ID.close();}catch(e){}}
+        localStorage.removeItem('skylink_session');
+        alert('Muda wa voucher yako umeisha. Tafadhali nunua voucher mpya.');
+        location.reload();
+      }
+    }catch(e){}
+  },60000);
+}
+
+function showSuccess(data){
+  document.getElementById('loginForm').style.display='none';
+  document.getElementById('successDiv').classList.add('show');
+  const mac=(data.macAddress&&data.macAddress!=='UNKNOWN')?data.macAddress:getMac();
+  const ip=data.ipAddress||getIp();
+  document.getElementById('sVoucher').textContent=data.voucherCode||'—';
+  document.getElementById('sPlan').textContent=data.plan||'—';
+  document.getElementById('sMAC').textContent=(mac&&mac!=='UNKNOWN')?mac:'Haipatikani';
+  document.getElementById('sIP').textContent=ip||'Haipatikani';
+  document.getElementById('sExpiry').textContent=fmtExpiry(data.expiryTime);
+  startCountdown(data.expiryTime,data.startTime,data.voucherCode);
+  if(data.sessionId&&data.sessionId!=='reconnect'){
+    localStorage.setItem('skylink_session',JSON.stringify({sid:data.sessionId,expiry:data.expiryTime,startTime:data.startTime||new Date().toISOString(),code:data.voucherCode,plan:data.plan,mac,ip}));
+  }
+  requestNotifPermission().then(g=>{ if(g) startNotifUpdater(data.voucherCode||'Voucher'); });
+
+  // Auto-redirect to original destination after success
+  setTimeout(()=>{
+    document.getElementById('sSub').textContent='Unafunguliwa kwenye intaneti... 🚀';
+    setTimeout(()=>{ try{ window.location.href=getDst(); }catch(e){} },1500);
+  },4000);
+}
+
+function selPkg(el,key){ document.querySelectorAll('.pkg').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); }
+function buyPkg(key,name,price){
+  document.querySelectorAll('.pkg').forEach(c=>c.classList.remove('sel'));
+  document.getElementById('pk-'+key).classList.add('sel');
+  document.getElementById('banName').textContent=name;
+  document.getElementById('banPrice').textContent=price;
+  document.getElementById('banner').classList.add('show');
+  document.getElementById('vcInput').placeholder=
+    key==='hour'?'Mfano: SKY-AB12 (Saa 1)':key==='day'?'Mfano: SKY-CD34 (Siku 1)':key==='week'?'Mfano: SKY-EF56 (Wiki 1)':'Mfano: SKY-GH78 (Mwezi 1)';
+  scrollToCard();
+}
+function changePkg(){ document.getElementById('banner').classList.remove('show'); document.querySelectorAll('.pkg').forEach(c=>c.classList.remove('sel')); document.querySelector('.pkgs').scrollIntoView({behavior:'smooth',block:'start'}); }
+function doDisconnect(){
+  if(confirm('Una uhakika unataka kuondoa muunganisho?\\nUtahitaji voucher mpya kuingia tena.')){
+    localStorage.removeItem('skylink_session'); clearInterval(HB_INT); clearInterval(CD_INT);
+    if(NOTIF_ID){try{NOTIF_ID.close();}catch(e){}}
+    location.reload();
+  }
+}
+
+async function connect(){
+  clearErr();
+  const code=document.getElementById('vcInput').value.trim().toUpperCase();
+  if(!code){ showErr('Tafadhali weka nambari ya voucher yako.'); document.getElementById('vcInput').focus(); return; }
+  const mac=getMac(), ip=getIp(), device=navigator.userAgent.substring(0,100);
+  setLoad(true,'Inathibitisha voucher...');
+  try{
+    const r=await fetch(API+'/auth/voucher-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({voucherCode:code,macAddress:mac,ipAddress:ip,deviceName:device})});
+    const d=await r.json();
+    if(!r.ok){
+      setLoad(false);
+      const msgs={404:'Nambari ya voucher haipatikani. Angalia tena.',410:'Voucher hii imekwisha muda. Tafadhali nunua mpya.',403:d.status==='BLOCKED'?'Simu yako imezuiwa. Piga: +255 621 597 520':'Voucher inatumika kwenye simu nyingine.',422:'Muundo wa nambari si sahihi. Jaribu tena.'};
+      showErr(msgs[r.status]||d.message||'Imeshindwa. Jaribu tena.');
+      return;
+    }
+    setLoad(true,'Inaunganisha kwenye intaneti...');
+    await new Promise(res=>setTimeout(res,800));
+    setLoad(false);
+    d.macAddress=mac; d.ipAddress=ip;
+    startHeartbeat(d.sessionId);
+    showSuccess(d);
+  }catch(e){
+    setLoad(false);
+    showErr('Haiwezi kufikia seva. Hakikisha uko kwenye WiFi ya SKYLINK NET.');
+    console.error(e);
+  }
+}
+
+async function checkSession(){
+  const raw=localStorage.getItem('skylink_session');
+  if(!raw) return;
+  let s; try{s=JSON.parse(raw);}catch{localStorage.removeItem('skylink_session');return;}
+  if(!s.expiry||new Date()>=new Date(s.expiry)){localStorage.removeItem('skylink_session');return;}
+  try{
+    const r=await fetch(API+'/auth/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:s.sid})});
+    const d=await r.json();
+    if(!r.ok||d.status==='EXPIRED'){localStorage.removeItem('skylink_session');return;}
+  }catch(e){}
+  startHeartbeat(s.sid);
+  showSuccess({sessionId:s.sid,expiryTime:s.expiry,startTime:s.startTime,voucherCode:s.code,plan:s.plan,macAddress:s.mac,ipAddress:s.ip});
+}
+
+document.getElementById('connBtn').addEventListener('click',connect);
+document.getElementById('vcInput').addEventListener('keydown',e=>{if(e.key==='Enter')connect();});
+document.getElementById('vcInput').addEventListener('input',function(){clearErr();const p=this.selectionStart;this.value=this.value.toUpperCase();this.setSelectionRange(p,p);});
+
+checkSession();
+</script>
+</body>
+</html>
