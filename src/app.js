@@ -5,6 +5,7 @@
 
 require('dotenv').config();
 
+const path      = require('path');
 const express   = require('express');
 const cors      = require('cors');
 const helmet    = require('helmet');
@@ -18,26 +19,20 @@ const app  = express();
 const PORT = process.env.PORT || 3000; // Render sets PORT automatically
 
 // ── Trust proxy ───────────────────────────────────────────────────────────────
-// Render (and most cloud platforms) sit behind a load balancer/proxy.
-// Without this, express-rate-limit can't correctly identify client IPs
-// from the X-Forwarded-For header, and throws a validation error.
 app.set('trust proxy', 1);
 
 // ── Security headers ──────────────────────────────────────────────────────────
-app.use(helmet());
+// Disable CSP so the portal page's inline scripts/styles work without issue
+app.use(helmet({ contentSecurityPolicy: false }));
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-// login.html is served directly by MikroTik with origin "http://login.hotspot"
-// (or similar internal hostname) — this is NOT a real domain we can predict,
-// so we allow all origins. Real security is JWT on admin routes + MikroTik's
-// walled garden restricting which destinations unauthenticated phones can reach.
 const allowAllOrigins = (process.env.ALLOWED_ORIGINS || '*').trim() === '*';
 const envOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
     if (allowAllOrigins) return callback(null, true);
-    if (!origin) return callback(null, true); // mobile apps, curl, server-to-server
+    if (!origin) return callback(null, true);
     if (envOrigins.includes(origin)) return callback(null, true);
     console.warn(`[CORS] Blocked origin: ${origin}`);
     callback(new Error(`CORS: Origin ${origin} not allowed`));
@@ -76,6 +71,18 @@ const authLimiter = rateLimit({
 app.use('/api/auth/admin-login',   authLimiter);
 app.use('/api/auth/voucher-login', authLimiter);
 
+// ═════════════════════════════════════════════════════════════════════════════
+//  CAPTIVE PORTAL — full page served here
+//  MikroTik's tiny login.html redirects here WITH real ?mac=&ip=&dst=
+//  (MikroTik substitutes $(mac)/$(ip) correctly during its own redirect,
+//   even though it won't substitute them in a directly-served static file)
+// ═════════════════════════════════════════════════════════════════════════════
+app.use('/portal', express.static(path.join(__dirname, '..', 'public')));
+
+app.get('/portal', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'portal.html'));
+});
+
 // ── API Routes ────────────────────────────────────────────────────────────────
 app.use('/api', routes);
 
@@ -104,6 +111,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('╔══════════════════════════════════════════════╗');
   console.log('  🚀  SKYLINK NET Backend started              ');
   console.log(`  📡  Port: ${PORT}                              `);
+  console.log(`  🌐  Portal: /portal                           `);
   console.log(`  🌍  Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('╚══════════════════════════════════════════════╝');
   console.log('');

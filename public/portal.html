@@ -322,29 +322,18 @@ html,body{min-height:100%;background:var(--cream);font-family:-apple-system,'Int
 
 <script>
 'use strict';
-const API = 'http://192.168.88.227:3000/api';
+const API = '/api'; // same-origin, since this page IS served by the backend
 
 // ═══════════════════════════════════════════════════════
-//  READ MAC + IP — these now come as REAL URL query params
-//  because MikroTik's tiny redirect file processed $(mac)
-//  before sending the browser here.
+//  READ MAC + IP FROM URL — MikroTik's tiny login.html
+//  redirects HERE with real ?mac=&ip=&dst= substituted
 // ═══════════════════════════════════════════════════════
 const URLP = new URLSearchParams(window.location.search);
-
-function getMac() {
-  const m = URLP.get('mac');
-  return (m && m.trim() !== '') ? m.trim() : 'UNKNOWN';
-}
-function getIp() {
-  const i = URLP.get('ip');
-  return (i && i.trim() !== '') ? i.trim() : '';
-}
-function getDst() {
-  return URLP.get('dst') || 'http://google.com';
-}
+function getMac(){ const m = URLP.get('mac'); return (m && m.trim()!=='') ? m.trim() : 'UNKNOWN'; }
+function getIp(){ const i = URLP.get('ip'); return (i && i.trim()!=='') ? i.trim() : ''; }
+function getDst(){ return URLP.get('dst') || 'http://google.com'; }
 
 let SID=null, HB_INT=null, CD_INT=null, EXPIRY=null, TOTAL_MS=null, NOTIF_ID=null;
-
 const pad = n => String(n).padStart(2,'0');
 function fmtExpiry(iso){ if(!iso) return '—'; return new Date(iso).toLocaleString('sw-TZ',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
 function showErr(msg){ document.getElementById('errTxt').textContent=msg; document.getElementById('errMsg').classList.add('show'); document.getElementById('vcGrp').classList.add('err'); }
@@ -363,9 +352,7 @@ function showNotifCountdown(remaining,code){
   if(NOTIF_ID){ try{NOTIF_ID.close();}catch(e){} }
   const h=Math.floor(remaining/3600000), m=Math.floor((remaining%3600000)/60000), s=Math.floor((remaining%60000)/1000);
   let t = h>0?`${h}h ${pad(m)}m`:m>0?`${m}m ${pad(s)}s`:`${s} sekunde`;
-  try{
-    NOTIF_ID=new Notification('⏱ SKYLINK NET — '+code,{body:'Muda uliobaki: '+t,tag:'skylink-countdown',requireInteraction:false,silent:true});
-  }catch(e){}
+  try{ NOTIF_ID=new Notification('⏱ SKYLINK NET — '+code,{body:'Muda uliobaki: '+t,tag:'skylink-countdown',requireInteraction:false,silent:true}); }catch(e){}
 }
 function startNotifUpdater(code){
   setInterval(()=>{ if(!EXPIRY) return; const r=new Date(EXPIRY)-new Date(); if(r>0) showNotifCountdown(r,code); },60000);
@@ -481,7 +468,7 @@ async function connect(){
     showSuccess(d);
   }catch(e){
     setLoad(false);
-    showErr('Haiwezi kufikia seva. Hakikisha uko kwenye WiFi ya SKYLINK NET.');
+    showErr('Haiwezi kufikia seva. Jaribu tena baada ya sekunde chache.');
     console.error(e);
   }
 }
@@ -495,7 +482,7 @@ async function checkSession(){
     const r=await fetch(API+'/auth/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:s.sid})});
     const d=await r.json();
     if(!r.ok||d.status==='EXPIRED'){localStorage.removeItem('skylink_session');return;}
-  }catch(e){}
+  }catch(e){ return; }
   startHeartbeat(s.sid);
   showSuccess({sessionId:s.sid,expiryTime:s.expiry,startTime:s.startTime,voucherCode:s.code,plan:s.plan,macAddress:s.mac,ipAddress:s.ip});
 }
