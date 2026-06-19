@@ -1,6 +1,6 @@
 /**
  * SKYLINK NET — Backend Server
- * Deployed on Koyeb, database on Supabase
+ * Deployed on Render, database on Supabase
  */
 
 require('dotenv').config();
@@ -15,21 +15,29 @@ const routes  = require('./routes');
 const { startExpiryJob } = require('./jobs/expiryJob');
 
 const app  = express();
-const PORT = process.env.PORT || 3000; // Koyeb sets PORT automatically
+const PORT = process.env.PORT || 3000; // Render sets PORT automatically
+
+// ── Trust proxy ───────────────────────────────────────────────────────────────
+// Render (and most cloud platforms) sit behind a load balancer/proxy.
+// Without this, express-rate-limit can't correctly identify client IPs
+// from the X-Forwarded-For header, and throws a validation error.
+app.set('trust proxy', 1);
 
 // ── Security headers ──────────────────────────────────────────────────────────
 app.use(helmet());
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-// In production, login.html is served by MikroTik (origin: login.hotspot or
-// similar internal hostname), so we allow broadly. The real security boundary
-// is JWT auth on admin routes + the walled garden on MikroTik's side.
-const envOrigins = (process.env.ALLOWED_ORIGINS || '*').split(',').map(o=>o.trim()).filter(Boolean);
+// login.html is served directly by MikroTik with origin "http://login.hotspot"
+// (or similar internal hostname) — this is NOT a real domain we can predict,
+// so we allow all origins. Real security is JWT on admin routes + MikroTik's
+// walled garden restricting which destinations unauthenticated phones can reach.
+const allowAllOrigins = (process.env.ALLOWED_ORIGINS || '*').trim() === '*';
+const envOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (envOrigins.includes('*')) return callback(null, true);
+    if (allowAllOrigins) return callback(null, true);
+    if (!origin) return callback(null, true); // mobile apps, curl, server-to-server
     if (envOrigins.includes(origin)) return callback(null, true);
     console.warn(`[CORS] Blocked origin: ${origin}`);
     callback(new Error(`CORS: Origin ${origin} not allowed`));
@@ -50,16 +58,20 @@ if (process.env.NODE_ENV !== 'test') {
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 const generalLimiter = rateLimit({
-  windowMs: 60*1000, max: parseInt(process.env.RATE_LIMIT_MAX) || 300,
+  windowMs: 60*1000,
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 300,
   message: { message: 'Too many requests. Please wait a moment.' },
-  standardHeaders: true, legacyHeaders: false,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use(generalLimiter);
 
 const authLimiter = rateLimit({
-  windowMs: 60*1000, max: 20,
+  windowMs: 60*1000,
+  max: 20,
   message: { message: 'Too many login attempts. Please wait 1 minute.' },
-  standardHeaders: true, legacyHeaders: false,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use('/api/auth/admin-login',   authLimiter);
 app.use('/api/auth/voucher-login', authLimiter);
