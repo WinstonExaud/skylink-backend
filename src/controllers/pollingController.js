@@ -1,14 +1,10 @@
 /**
- * SKYLINK NET — MikroTik Polling Controller (v3 — Native Hotspot Users)
+ * SKYLINK NET — MikroTik Polling Controller
  *
- * Instead of injecting into /ip hotspot active (which requires complex
- * parsing on MikroTik's side), we now have MikroTik create a proper
- * HOTSPOT USER (username + password = voucher code). This uses MikroTik's
- * native, battle-tested authentication system — the captive portal then
- * submits this username/password directly to MikroTik's own login form.
- *
- * Format returned: just the voucher code + profile, one per line,
- * separated by a single space (simplest possible parsing).
+ * Used by the LOCAL RELAY SERVICE (relay-service.js), not MikroTik
+ * scripting directly. The relay runs on a device on your local
+ * network and does the actual MikroTik API calls using proven,
+ * tested Node.js code — completely avoiding RouterOS scripting.
  */
 
 const pool = require('../config/db');
@@ -16,7 +12,7 @@ const pool = require('../config/db');
 async function getPending(req, res) {
   try {
     const result = await pool.query(`
-      SELECT id, mac_address, profile, voucher_code
+      SELECT id, mac_address, ip_address, profile
       FROM pending_activations
       WHERE delivered = false
       ORDER BY created_at ASC
@@ -33,8 +29,9 @@ async function getPending(req, res) {
       [ids]
     );
 
-    // Simplest possible format: VOUCHERCODE PROFILE (space separated, no special chars)
-    const lines = result.rows.map(r => `${r.voucher_code} ${r.profile}`);
+    const lines = result.rows.map(r =>
+      `${r.mac_address},${r.ip_address || '0.0.0.0'},${r.profile}`
+    );
 
     return res.type('text/plain').send(lines.join('\n'));
   } catch (err) {
@@ -47,7 +44,7 @@ async function queueActivation({ mac, ip, profile, voucherCode }) {
   await pool.query(`
     INSERT INTO pending_activations (mac_address, ip_address, profile, voucher_code)
     VALUES ($1, $2, $3, $4)
-  `, [mac, ip, profile, voucherCode]);
+  `, [mac, ip, profile, voucherCode || null]);
 }
 
 async function getPendingDisconnects(req, res) {

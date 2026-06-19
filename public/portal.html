@@ -460,12 +460,18 @@ async function connect(){
       showErr(msgs[r.status]||d.message||'Imeshindwa. Jaribu tena.');
       return;
     }
+
+    // Voucher validated. The local relay service polls every 3s and
+    // activates the session directly via MikroTik's API. Wait briefly
+    // for that to complete before showing success / redirecting.
     setLoad(true,'Inaunganisha kwenye intaneti...');
-    await new Promise(res=>setTimeout(res,800));
+    await new Promise(res=>setTimeout(res,4000));
     setLoad(false);
+
     d.macAddress=mac; d.ipAddress=ip;
     startHeartbeat(d.sessionId);
     showSuccess(d);
+
   }catch(e){
     setLoad(false);
     showErr('Haiwezi kufikia seva. Jaribu tena baada ya sekunde chache.');
