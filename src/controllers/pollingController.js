@@ -1,10 +1,11 @@
 /**
- * SKYLINK NET — MikroTik Polling Controller
+ * SKYLINK NET — MikroTik Voucher Sync Controller
  *
- * Used by the LOCAL RELAY SERVICE (relay-service.js), not MikroTik
- * scripting directly. The relay runs on a device on your local
- * network and does the actual MikroTik API calls using proven,
- * tested Node.js code — completely avoiding RouterOS scripting.
+ * Used by the local relay-service.js. When a voucher is generated
+ * (via admin panel, from anywhere), it's queued here. The relay
+ * picks it up within 5 seconds and creates a matching MikroTik
+ * hotspot user — so when the customer enters the voucher on the
+ * captive portal, MikroTik already recognizes it instantly.
  */
 
 const pool = require('../config/db');
@@ -12,11 +13,11 @@ const pool = require('../config/db');
 async function getPending(req, res) {
   try {
     const result = await pool.query(`
-      SELECT id, mac_address, ip_address, profile, voucher_code
-      FROM pending_activations
+      SELECT id, action, voucher_code, profile
+      FROM mikrotik_sync_queue
       WHERE delivered = false
       ORDER BY created_at ASC
-      LIMIT 20
+      LIMIT 50
     `);
 
     if (!result.rows.length) {
@@ -25,12 +26,13 @@ async function getPending(req, res) {
 
     const ids = result.rows.map(r => r.id);
     await pool.query(
-      `UPDATE pending_activations SET delivered = true, delivered_at = NOW() WHERE id = ANY($1)`,
+      `UPDATE mikrotik_sync_queue SET delivered = true, delivered_at = NOW() WHERE id = ANY($1)`,
       [ids]
     );
 
+    // Format: ACTION,CODE,PROFILE  (one per line)
     const lines = result.rows.map(r =>
-      `${r.mac_address},${r.ip_address || '0.0.0.0'},${r.profile},${r.voucher_code || ''}`
+      `${r.action},${r.voucher_code},${r.profile || ''}`
     );
 
     return res.type('text/plain').send(lines.join('\n'));
@@ -40,38 +42,20 @@ async function getPending(req, res) {
   }
 }
 
-async function queueActivation({ mac, ip, profile, voucherCode }) {
+// ── Called when a voucher is generated ───────────────────────────────────────
+async function queueVoucherCreate({ voucherCode, profile }) {
   await pool.query(`
-    INSERT INTO pending_activations (mac_address, ip_address, profile, voucher_code)
-    VALUES ($1, $2, $3, $4)
-  `, [mac, ip, profile, voucherCode || null]);
+    INSERT INTO mikrotik_sync_queue (action, voucher_code, profile)
+    VALUES ('create', $1, $2)
+  `, [voucherCode, profile]);
 }
 
-async function getPendingDisconnects(req, res) {
-  try {
-    const result = await pool.query(`
-      SELECT id, mac_address
-      FROM pending_disconnects
-      WHERE delivered = false
-      ORDER BY created_at ASC
-      LIMIT 20
-    `);
-    if (!result.rows.length) return res.type('text/plain').send('');
-    const ids = result.rows.map(r => r.id);
-    await pool.query(
-      `UPDATE pending_disconnects SET delivered = true, delivered_at = NOW() WHERE id = ANY($1)`,
-      [ids]
-    );
-    const lines = result.rows.map(r => r.mac_address);
-    return res.type('text/plain').send(lines.join('\n'));
-  } catch (err) {
-    console.error('getPendingDisconnects error:', err);
-    return res.status(500).type('text/plain').send('');
-  }
+// ── Called when a voucher is reset or deleted ────────────────────────────────
+async function queueVoucherRemove({ voucherCode }) {
+  await pool.query(`
+    INSERT INTO mikrotik_sync_queue (action, voucher_code)
+    VALUES ('remove', $1)
+  `, [voucherCode]);
 }
 
-async function queueDisconnect({ mac }) {
-  await pool.query(`INSERT INTO pending_disconnects (mac_address) VALUES ($1)`, [mac]);
-}
-
-module.exports = { getPending, queueActivation, getPendingDisconnects, queueDisconnect };
+module.exports = { getPending, queueVoucherCreate, queueVoucherRemove };

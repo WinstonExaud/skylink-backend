@@ -1,5 +1,21 @@
-const pool   = require('../config/db');
-const { v4: uuidv4 } = require('uuid');
+const pool = require('../config/db');
+const pollingController = require('../controllers/pollingController');
+
+// ── Map plan name → MikroTik User Profile name ───────────────────────────────
+function getMikroTikProfile(planName) {
+  const map = {
+    'hourly':  '1H-500',
+    'daily':   '1D-1000',
+    'weekly':  '1W-7000',
+    'monthly': '30D-30000',
+    'hour':    '1H-500',
+    'day':     '1D-1000',
+    'week':    '1W-7000',
+    'month':   '30D-30000',
+  };
+  const key = (planName || '').toLowerCase().trim();
+  return map[key] || '1D-1000';
+}
 
 // ── Generate random voucher code ─────────────────────────────────────────────
 function generateCode(prefix = 'SKY') {
@@ -10,12 +26,12 @@ function generateCode(prefix = 'SKY') {
   return `${prefix}-${suffix}`;
 }
 
-// ── Generate N unique vouchers ───────────────────────────────────────────────
+// ── Generate N unique vouchers + queue MikroTik sync ─────────────────────────
 async function generateVouchers({ planId, quantity, prefix = 'SKY', adminId }) {
-  // Fetch plan
   const planRes = await pool.query('SELECT * FROM plans WHERE id = $1', [planId]);
   if (!planRes.rows.length) throw new Error('Plan not found');
   const plan = planRes.rows[0];
+  const mikrotikProfile = getMikroTikProfile(plan.name);
 
   const created = [];
   const client  = await pool.connect();
@@ -26,7 +42,6 @@ async function generateVouchers({ planId, quantity, prefix = 'SKY', adminId }) {
     for (let i = 0; i < quantity; i++) {
       let code, exists = true;
 
-      // Ensure unique code
       while (exists) {
         code = generateCode(prefix);
         const check = await client.query('SELECT id FROM vouchers WHERE code = $1', [code]);
@@ -44,7 +59,17 @@ async function generateVouchers({ planId, quantity, prefix = 'SKY', adminId }) {
 
     await client.query('COMMIT');
 
-    // Log action
+    // ── Queue MikroTik sync for each voucher ───────────────────────────────
+    // The local relay will pick these up within 5 seconds and create
+    // matching hotspot users on MikroTik — so by the time you send the
+    // voucher code to your customer, it's already usable.
+    for (const voucher of created) {
+      await pollingController.queueVoucherCreate({
+        voucherCode: voucher.code,
+        profile: mikrotikProfile,
+      });
+    }
+
     await pool.query(`
       INSERT INTO admin_logs (admin_id, action, entity, detail)
       VALUES ($1, 'GENERATE_VOUCHERS', 'vouchers', $2)
@@ -59,13 +84,12 @@ async function generateVouchers({ planId, quantity, prefix = 'SKY', adminId }) {
   }
 }
 
-// ── Validate and activate a voucher ─────────────────────────────────────────
+// ── Validate voucher (used by old runtime flow — kept for stats/tracking) ───
 async function validateVoucher({ code, macAddress, ipAddress, deviceName }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    // Lock the voucher row
     const vRes = await client.query(
       'SELECT * FROM vouchers WHERE code = $1 FOR UPDATE',
       [code.toUpperCase()]
@@ -77,45 +101,30 @@ async function validateVoucher({ code, macAddress, ipAddress, deviceName }) {
 
     const voucher = vRes.rows[0];
 
-    // Already expired
     if (voucher.status === 'expired') {
       throw { status: 410, message: 'Voucher has expired' };
     }
 
-    // Already active — check if same device (reconnect)
     if (voucher.status === 'active') {
       if (voucher.mac_address !== macAddress) {
         throw { status: 403, message: 'Voucher is already in use by another device' };
       }
-      // Same device reconnecting — check not expired
       if (new Date() > new Date(voucher.expiry_time)) {
-        await client.query(
-          "UPDATE vouchers SET status = 'expired' WHERE code = $1",
-          [code.toUpperCase()]
-        );
+        await client.query("UPDATE vouchers SET status = 'expired' WHERE code = $1", [code.toUpperCase()]);
         await client.query('COMMIT');
         throw { status: 410, message: 'Session has expired' };
       }
       await client.query('COMMIT');
-      return {
-        voucher,
-        reconnect: true,
-        expiryTime: voucher.expiry_time,
-      };
+      return { voucher, reconnect: true, expiryTime: voucher.expiry_time };
     }
 
-    // First use — activate
     const now        = new Date();
     const expiryTime = new Date(now.getTime() + voucher.duration_minutes * 60 * 1000);
 
     await client.query(`
       UPDATE vouchers
-      SET status       = 'active',
-          mac_address  = $1,
-          ip_address   = $2,
-          device_name  = $3,
-          start_time   = $4,
-          expiry_time  = $5
+      SET status = 'active', mac_address = $1, ip_address = $2,
+          device_name = $3, start_time = $4, expiry_time = $5
       WHERE code = $6
     `, [macAddress, ipAddress, deviceName, now, expiryTime, code.toUpperCase()]);
 
@@ -134,7 +143,6 @@ async function validateVoucher({ code, macAddress, ipAddress, deviceName }) {
   }
 }
 
-// ── Get all vouchers with filters ────────────────────────────────────────────
 async function getVouchers({ status, plan, search, page = 1, limit = 50 }) {
   let query  = 'SELECT * FROM vouchers WHERE 1=1';
   const params = [];
@@ -154,18 +162,21 @@ async function getVouchers({ status, plan, search, page = 1, limit = 50 }) {
   return res.rows;
 }
 
-// ── Reset a voucher ───────────────────────────────────────────────────────────
+// ── Reset voucher — also queue MikroTik removal so it can be re-synced ──────
 async function resetVoucher({ code, adminId }) {
   await pool.query(`
     UPDATE vouchers
-    SET status      = 'unused',
-        mac_address = NULL,
-        ip_address  = NULL,
-        device_name = NULL,
-        start_time  = NULL,
-        expiry_time = NULL
+    SET status = 'unused', mac_address = NULL, ip_address = NULL,
+        device_name = NULL, start_time = NULL, expiry_time = NULL
     WHERE code = $1
   `, [code]);
+
+  // Re-queue creation in case it was somehow removed from MikroTik
+  const vRes = await pool.query('SELECT plan_name FROM vouchers WHERE code = $1', [code]);
+  if (vRes.rows.length) {
+    const profile = getMikroTikProfile(vRes.rows[0].plan_name);
+    await pollingController.queueVoucherCreate({ voucherCode: code, profile });
+  }
 
   await pool.query(`
     INSERT INTO admin_logs (admin_id, action, entity, entity_id, detail)
@@ -173,9 +184,12 @@ async function resetVoucher({ code, adminId }) {
   `, [adminId, code]);
 }
 
-// ── Delete a voucher ──────────────────────────────────────────────────────────
 async function deleteVoucher({ code, adminId }) {
   await pool.query('DELETE FROM vouchers WHERE code = $1', [code]);
+
+  // Queue removal from MikroTik too
+  await pollingController.queueVoucherRemove({ voucherCode: code });
+
   await pool.query(`
     INSERT INTO admin_logs (admin_id, action, entity, entity_id, detail)
     VALUES ($1, 'DELETE_VOUCHER', 'vouchers', $2, 'Voucher deleted')
