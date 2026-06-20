@@ -28,12 +28,10 @@ router.get('/health', (req, res) => res.json({
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  MIKROTIK POLLING  (called by MikroTik scheduler, no JWT — secured by being
-//  a read-only queue endpoint with no sensitive data exposure)
+//  MIKROTIK SYNC  (called by local relay-service.js)
 // ─────────────────────────────────────────────────────────────────────────────
 
-router.get('/mikrotik/pending',     pollingController.getPending);
-router.get('/mikrotik/disconnects', pollingController.getPendingDisconnects);
+router.get('/mikrotik/pending', pollingController.getPending);
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PROTECTED  (JWT required)
