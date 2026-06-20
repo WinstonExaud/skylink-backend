@@ -1,22 +1,25 @@
 /**
  * SKYLINK NET — Expiry Enforcement Job
  *
- * Runs every minute (configurable via EXPIRY_CRON env var).
- * Finds all active sessions past their expiry_time and:
+ * Runs every minute. Enforces WALL-CLOCK expiry:
+ * "1 hour voucher = expires exactly 1 hour after first use,
+ *  regardless of how many times the customer disconnects/reconnects."
+ *
+ * Finds all sessions/vouchers past their wall-clock expiry_time and:
  *   1. Marks them expired in the DB
  *   2. Marks the voucher expired
- *   3. Tells MikroTik to disconnect the user
- *
- * This is the "24-hour hard rule" engine.
+ *   3. Queues a MikroTik user REMOVAL — this is what actually
+ *      kicks them off and prevents reconnecting, overriding
+ *      MikroTik's own usage-based session-timeout behavior.
  */
 
 const cron     = require('node-cron');
 const pool     = require('../config/db');
-const mikrotik = require('../services/mikrotikService');
+const pollingController = require('../controllers/pollingController');
 
 async function runExpiryCheck() {
   try {
-    // Find all active sessions that have passed expiry
+    // Find all active sessions that have passed WALL-CLOCK expiry
     const expired = await pool.query(`
       SELECT session_id, mac_address, voucher_code
       FROM sessions
@@ -42,16 +45,22 @@ async function runExpiryCheck() {
           [session.voucher_code]
         );
 
-        // 3. Disconnect from MikroTik
-        await mikrotik.disconnectUser({ mac: session.mac_address });
+        // 3. Queue MikroTik removal — this enforces WALL-CLOCK cutoff.
+        // Even if the customer disconnected early and MikroTik's own
+        // session-timeout hasn't fired yet, this removes their hotspot
+        // user entirely once the wall-clock expiry hits, so they can
+        // no longer log back in.
+        await pollingController.queueVoucherRemove({
+          voucherCode: session.voucher_code,
+        });
 
         // 4. Log it
         await pool.query(`
           INSERT INTO admin_logs (action, entity, entity_id, detail)
           VALUES ('AUTO_EXPIRE', 'sessions', $1, $2)
-        `, [session.session_id, `Auto-expired session for MAC ${session.mac_address}`]);
+        `, [session.session_id, `Wall-clock expiry: ${session.voucher_code} (MAC ${session.mac_address})`]);
 
-        console.log(`[ExpiryJob] ✅ Expired: ${session.voucher_code} (${session.mac_address})`);
+        console.log(`[ExpiryJob] ✅ Expired: ${session.voucher_code} (${session.mac_address}) — MikroTik removal queued`);
 
       } catch (sessionErr) {
         console.error(`[ExpiryJob] ❌ Failed to expire session ${session.session_id}:`, sessionErr.message);
@@ -65,13 +74,12 @@ async function runExpiryCheck() {
 
 function startExpiryJob() {
   const cronExpr = process.env.EXPIRY_CRON || '* * * * *'; // every 1 minute
-  console.log(`[ExpiryJob] ⏰ Scheduled: "${cronExpr}"`);
+  console.log(`[ExpiryJob] ⏰ Scheduled: "${cronExpr}" (wall-clock enforcement)`);
 
   cron.schedule(cronExpr, () => {
     runExpiryCheck();
   });
 
-  // Also run once on startup
   runExpiryCheck();
 }
 
