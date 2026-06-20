@@ -332,6 +332,7 @@ const URLP = new URLSearchParams(window.location.search);
 function getMac(){ const m = URLP.get('mac'); return (m && m.trim()!=='') ? m.trim() : 'UNKNOWN'; }
 function getIp(){ const i = URLP.get('ip'); return (i && i.trim()!=='') ? i.trim() : ''; }
 function getDst(){ return URLP.get('dst') || 'http://google.com'; }
+function getLoginUrl(){ return URLP.get('loginurl') || 'http://192.168.88.1/login'; }
 
 let SID=null, HB_INT=null, CD_INT=null, EXPIRY=null, TOTAL_MS=null, NOTIF_ID=null;
 const pad = n => String(n).padStart(2,'0');
@@ -495,11 +496,19 @@ function submitToMikroTikNativeLogin(voucherCode) {
 
   const form = document.createElement('form');
   form.method = 'POST';
-  form.action = 'http://192.168.88.1/login';
+  form.action = getLoginUrl(); // the REAL MikroTik endpoint, captured from $(link-login-only)
   form.target = 'mikrotik-auth-frame';
   form.style.display = 'none';
 
-  const fields = { username: voucherCode, password: voucherCode };
+  // Required fields confirmed from MikroTik's own working templates —
+  // username/password alone is not enough, MikroTik also expects
+  // mac and dst (link-orig) to correctly bind and redirect the session
+  const fields = {
+    username: voucherCode,
+    password: voucherCode,
+    mac: getMac(),
+    dst: getDst(),
+  };
   for (const [name, value] of Object.entries(fields)) {
     const input = document.createElement('input');
     input.type = 'hidden';
