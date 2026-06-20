@@ -1,11 +1,12 @@
 const express = require('express');
 const router  = express.Router();
 
-const authController     = require('../controllers/authController');
-const voucherController  = require('../controllers/voucherController');
-const sessionController  = require('../controllers/sessionController');
-const adminController    = require('../controllers/adminController');
-const pollingController  = require('../controllers/pollingController');
+const authController       = require('../controllers/authController');
+const voucherController    = require('../controllers/voucherController');
+const sessionController    = require('../controllers/sessionController');
+const adminController      = require('../controllers/adminController');
+const pollingController    = require('../controllers/pollingController');
+const sessionSyncController = require('../controllers/sessionSyncController');
 const auth                = require('../middleware/authMiddleware');
 const {
   validateVoucherLogin,
@@ -32,6 +33,7 @@ router.get('/health', (req, res) => res.json({
 // ─────────────────────────────────────────────────────────────────────────────
 
 router.get('/mikrotik/pending', pollingController.getPending);
+router.post('/mikrotik/sessions', sessionSyncController.syncSessions);
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PROTECTED  (JWT required)
