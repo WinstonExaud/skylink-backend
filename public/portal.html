@@ -461,15 +461,17 @@ async function connect(){
       return;
     }
 
-    // Voucher validated. The local relay service polls every 3s and
-    // activates the session directly via MikroTik's API. Wait briefly
-    // for that to complete before showing success / redirecting.
+    // Voucher validated. The local relay polls every 3s and creates a
+    // NATIVE MikroTik hotspot user (proven to work via the default
+    // login page test). Wait for that, then authenticate through
+    // MikroTik's own login handler — same mechanism as its default page.
     setLoad(true,'Inaunganisha kwenye intaneti...');
-    await new Promise(res=>setTimeout(res,4000));
-    setLoad(false);
+    await new Promise(res=>setTimeout(res,5000));
 
     d.macAddress=mac; d.ipAddress=ip;
     startHeartbeat(d.sessionId);
+
+    submitToMikroTikNativeLogin(code);
     showSuccess(d);
 
   }catch(e){
@@ -477,6 +479,38 @@ async function connect(){
     showErr('Haiwezi kufikia seva. Jaribu tena baada ya sekunde chache.');
     console.error(e);
   }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Authenticate through MikroTik's OWN native hotspot login
+//  This is the proven-working mechanism (confirmed via the
+//  default MikroTik login page test). Uses a hidden iframe so
+//  it doesn't navigate away from our nice UI.
+// ═══════════════════════════════════════════════════════
+function submitToMikroTikNativeLogin(voucherCode) {
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.name = 'mikrotik-auth-frame';
+  document.body.appendChild(iframe);
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = 'http://192.168.88.1/login';
+  form.target = 'mikrotik-auth-frame';
+  form.style.display = 'none';
+
+  const fields = { username: voucherCode, password: voucherCode };
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+
+  document.body.appendChild(form);
+  form.submit();
+  console.log('[SKYLINK] Submitted native MikroTik login for', voucherCode);
 }
 
 async function checkSession(){

@@ -12,7 +12,7 @@ const pool = require('../config/db');
 async function getPending(req, res) {
   try {
     const result = await pool.query(`
-      SELECT id, mac_address, ip_address, profile
+      SELECT id, mac_address, ip_address, profile, voucher_code
       FROM pending_activations
       WHERE delivered = false
       ORDER BY created_at ASC
@@ -30,7 +30,7 @@ async function getPending(req, res) {
     );
 
     const lines = result.rows.map(r =>
-      `${r.mac_address},${r.ip_address || '0.0.0.0'},${r.profile}`
+      `${r.mac_address},${r.ip_address || '0.0.0.0'},${r.profile},${r.voucher_code || ''}`
     );
 
     return res.type('text/plain').send(lines.join('\n'));

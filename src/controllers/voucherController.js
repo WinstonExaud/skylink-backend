@@ -1,7 +1,7 @@
-const voucherService  = require('../services/voucherService');
-const sessionService  = require('../services/sessionService');
-const pollingController = require('./pollingController');
-const pool             = require('../config/db');
+const voucherService = require('../services/voucherService');
+const sessionService = require('../services/sessionService');
+const mikrotik       = require('../services/mikrotikService');
+const pool           = require('../config/db');
 
 // ── POST /api/auth/voucher-login ─────────────────────────────────────────────
 async function voucherLogin(req, res) {
@@ -49,16 +49,19 @@ async function voucherLogin(req, res) {
       });
     }
 
-    // ── Queue MikroTik activation (polling model) ────────────────────────────
-    // Instead of calling MikroTik directly (which fails when backend is in
-    // the cloud and MikroTik is behind NAT), we queue the activation.
-    // MikroTik polls /api/mikrotik/pending every few seconds and picks it up.
+    // ── DIRECTLY tell MikroTik to allow internet — no polling, no relay ─────
+    let mikrotikResult = { success: false };
     if (mac === 'UNKNOWN' || !mac) {
-      console.warn('[Activation] ⚠ MAC is UNKNOWN — skipping queue.');
+      console.warn('[MikroTik] ⚠ MAC is UNKNOWN — skipping.');
     } else {
       const profile = getMikroTikProfile(voucher.plan_name);
-      console.log(`[Activation] Queued: ${mac} | IP: ${ip} | Profile: ${profile}`);
-      await pollingController.queueActivation({ mac, ip, profile, voucherCode: voucher.code });
+      console.log(`[MikroTik] Allowing: ${mac} | IP: ${ip} | Profile: ${profile}`);
+      mikrotikResult = await mikrotik.loginUser({
+        mac,
+        ip,
+        profile,
+        comment: `SKYLINK-${voucher.code}`,
+      });
     }
 
     return res.json({
@@ -71,6 +74,7 @@ async function voucherLogin(req, res) {
       reconnect,
       macAddress:  mac,
       ipAddress:   ip,
+      internetUnlocked: mikrotikResult.success,
       message:     reconnect ? 'Reconnected successfully' : 'Connected successfully',
     });
 
@@ -83,18 +87,21 @@ async function voucherLogin(req, res) {
 
 // ── Map plan name → MikroTik User Profile name ───────────────────────────────
 function getMikroTikProfile(planName) {
+  // IMPORTANT: these must match EXACTLY what /ip hotspot user profile print
+  // shows on the router — verified against actual MikroTik config:
+  //   1H-500, 1D-1000 (note: ONE, not capital I), 1W-7000, 30D-30000
   const map = {
     'hourly':  '1H-500',
-    'daily':   'ID-1000',
+    'daily':   '1D-1000',
     'weekly':  '1W-7000',
     'monthly': '30D-30000',
     'hour':    '1H-500',
-    'day':     'ID-1000',
+    'day':     '1D-1000',
     'week':    '1W-7000',
     'month':   '30D-30000',
   };
   const key = (planName || '').toLowerCase().trim();
-  return map[key] || 'ID-1000';
+  return map[key] || '1D-1000';
 }
 
 // ── POST /api/auth/heartbeat ─────────────────────────────────────────────────
