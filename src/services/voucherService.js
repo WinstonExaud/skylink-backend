@@ -191,9 +191,9 @@ async function deleteVoucher({ code, adminId }) {
   await pollingController.queueVoucherRemove({ voucherCode: code });
 
   await pool.query(`
-    INSERT INTO admin_logs (admin_id, action, entity, entity_id, detail)
-    VALUES ($1, 'DELETE_VOUCHER', 'vouchers', $2, 'Voucher deleted')
-  `, [adminId, code]);
+  INSERT INTO admin_logs (admin_id, action, entity, detail)
+  VALUES ($1, 'DELETE_VOUCHER', 'vouchers', $2)
+`, [adminId, `Deleted voucher ${code}`]);
 }
 
 module.exports = {
