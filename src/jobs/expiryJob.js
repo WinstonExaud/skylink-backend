@@ -1,19 +1,10 @@
 /**
- * SKYLINK NET — Expiry Enforcement Job
+ * SKYLINK NET — Expiry Enforcement Job (v2)
  *
- * Runs every minute. Enforces WALL-CLOCK expiry:
- * "1 hour voucher = expires exactly 1 hour after first use,
- *  regardless of how many times the customer disconnects/reconnects."
- *
- * Flow:
- *   1. Find all active sessions where NOW() > expiry_time
- *   2. Mark session + voucher as 'expired' in DB
- *   3. Queue MikroTik REMOVE → relay picks it up → router deletes the user
- *   4. Log it in admin_logs
- *
- * The MikroTik removal is the critical step — without it, even after
- * the DB expires the voucher, the hotspot user still exists on the
- * router and the customer can reconnect by just re-entering the code.
+ * Fix: separated the DB updates from the MikroTik queue step.
+ * Each step is now its own try/catch — a missing column or any other
+ * DB issue on step 2 will no longer block step 3 (the MikroTik removal),
+ * which is the most critical part.
  */
 
 const cron              = require('node-cron');
@@ -22,7 +13,6 @@ const pollingController = require('../controllers/pollingController');
 
 async function runExpiryCheck() {
   try {
-    // ── Step 1: Find all active sessions past wall-clock expiry ────────────
     const expired = await pool.query(`
       SELECT s.session_id, s.mac_address, s.voucher_code, s.expiry_time,
              v.plan_name
@@ -38,33 +28,53 @@ async function runExpiryCheck() {
     console.log(`[ExpiryJob] 🕐 Found ${expired.rows.length} expired session(s) — processing...`);
 
     for (const session of expired.rows) {
-      try {
-        const { session_id, voucher_code, mac_address, plan_name, expiry_time } = session;
+      const { session_id, voucher_code, mac_address, plan_name, expiry_time } = session;
 
-        // ── Step 2a: Mark session expired ──────────────────────────────────
+      // ── Step 1: Mark session expired ─────────────────────────────────────
+      // ended_at is set here — run the migration first:
+      //   ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ;
+      try {
         await pool.query(`
           UPDATE sessions
           SET status = 'expired', ended_at = NOW()
           WHERE session_id = $1 AND status = 'active'
         `, [session_id]);
+      } catch (err) {
+        // Don't stop — log and continue to the MikroTik removal
+        console.error(`[ExpiryJob] ⚠️  Could not update session ${session_id}: ${err.message}`);
+        // Fallback: update without ended_at
+        try {
+          await pool.query(`
+            UPDATE sessions SET status = 'expired'
+            WHERE session_id = $1 AND status = 'active'
+          `, [session_id]);
+        } catch (fallbackErr) {
+          console.error(`[ExpiryJob] ❌ Session update fallback also failed: ${fallbackErr.message}`);
+        }
+      }
 
-        // ── Step 2b: Mark voucher expired ──────────────────────────────────
+      // ── Step 2: Mark voucher expired ─────────────────────────────────────
+      try {
         await pool.query(`
-          UPDATE vouchers
-          SET status = 'expired'
+          UPDATE vouchers SET status = 'expired'
           WHERE code = $1 AND status = 'active'
         `, [voucher_code]);
+      } catch (err) {
+        console.error(`[ExpiryJob] ⚠️  Could not expire voucher ${voucher_code}: ${err.message}`);
+      }
 
-        // ── Step 3: Queue MikroTik removal ─────────────────────────────────
-        // This is what actually enforces the expiry on the router.
-        // The relay will:
-        //   a) kick any active hotspot session for this user
-        //   b) delete the hotspot user entirely
-        // After this, entering the voucher code on the portal returns
-        // "login failed" because the user no longer exists on MikroTik.
+      // ── Step 3: Queue MikroTik removal — ALWAYS runs even if steps above fail
+      // This is the critical step. Without this, the user remains on the router
+      // and can keep reconnecting after their time is up.
+      try {
         await pollingController.queueVoucherRemove({ voucherCode: voucher_code });
+        console.log(`[ExpiryJob] ✅ ${voucher_code} (${plan_name}) — removal queued | MAC: ${mac_address}`);
+      } catch (err) {
+        console.error(`[ExpiryJob] ❌ CRITICAL: Could not queue removal for ${voucher_code}: ${err.message}`);
+      }
 
-        // ── Step 4: Log ────────────────────────────────────────────────────
+      // ── Step 4: Log ───────────────────────────────────────────────────────
+      try {
         await pool.query(`
           INSERT INTO admin_logs (action, entity, entity_id, detail)
           VALUES ('AUTO_EXPIRE', 'sessions', $1, $2)
@@ -72,12 +82,9 @@ async function runExpiryCheck() {
           session_id,
           `Wall-clock expiry: ${voucher_code} (${plan_name}) | MAC: ${mac_address} | Expired: ${new Date(expiry_time).toISOString()}`
         ]);
-
-        console.log(`[ExpiryJob] ✅ ${voucher_code} (${plan_name}) — expired & removal queued | MAC: ${mac_address}`);
-
-      } catch (rowErr) {
-        // One row failing must never stop the rest
-        console.error(`[ExpiryJob] ❌ Failed for session ${session.session_id}:`, rowErr.message);
+      } catch (err) {
+        // Logging failure is non-critical
+        console.error(`[ExpiryJob] ⚠️  Could not write admin log: ${err.message}`);
       }
     }
 
@@ -87,12 +94,7 @@ async function runExpiryCheck() {
 }
 
 function startExpiryJob() {
-  // Default: every 60 seconds. Override with EXPIRY_CRON env var.
-  // Examples:
-  //   '*/2 * * * *'  → every 2 minutes (more responsive)
-  //   '* * * * *'    → every minute (default)
   const cronExpr = process.env.EXPIRY_CRON || '* * * * *';
-
   console.log(`[ExpiryJob] ⏰ Wall-clock expiry enforcement started (${cronExpr})`);
 
   cron.schedule(cronExpr, () => {
@@ -101,8 +103,7 @@ function startExpiryJob() {
     );
   });
 
-  // Also run immediately on boot — catches anything that expired
-  // while the server was down (e.g. overnight restart)
+  // Run immediately on boot — catches sessions that expired during downtime
   runExpiryCheck().catch(err =>
     console.error('[ExpiryJob] Unhandled error in boot run:', err.message)
   );
